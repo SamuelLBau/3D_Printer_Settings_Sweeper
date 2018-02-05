@@ -1,1 +1,4 @@
 *.pyc
+src/factory_files/*
+src/fff_files/*
+src/models/*
