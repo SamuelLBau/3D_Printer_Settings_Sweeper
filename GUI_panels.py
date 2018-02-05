@@ -1,14 +1,23 @@
 import Tkinter as tk
+from tkSimpleDialog import askstring
+import tkMessageBox
 import tkFileDialog
-
 from copy import deepcopy
+from math import ceil
+import os
+import shutil
 
 from XML_handler import XML_load_file,XML_get_attributes,XML_get_data, \
-        XML_list_nodes,XML_is_leaf,XML_get_leaf_data,XML_get_tag,XML_data_type\
-        
+        XML_list_nodes,XML_is_leaf,XML_get_leaf_data,XML_get_tag,XML_data_type,\
+        build_XML,generate_XML_file,XML_struct_to_str
+from Simplify3d_Automation import get_max_objects,generate_factories
         
 
 from XML_handler import etree_to_dict
+
+SRC_DIR     = "./src/"
+MODEL_DIR   = SRC_DIR + "models/"
+FFF_DIR     = SRC_DIR + "fff_files/"
 
 class ScrolledFrame(tk.Frame):
     """A pure Tkinter scrollable frame that actually works!
@@ -90,6 +99,7 @@ class header_frame(tk.Frame):
         self.profile_name_ENTRY = tk.Entry(self,textvariable=self.profile_name_SV)
         self.save_BUTTON        = tk.Button(self,text="Save .fff files",command=self.save_button_press)
         self.load_BUTTON        = tk.Button(self,text="Load .fff file",command=self.load_button_press)
+        self.save_factory_BUTTON= tk.Button(self,text="Save .factory files",command=self.save_factory_button_press)
         
         self.base_profile_SV.set("")
         self.profile_name_SV.set("")
@@ -98,19 +108,23 @@ class header_frame(tk.Frame):
         self.base_profile2_LABEL.grid(row=0,column=1)
         self.profile_name_LABEL.grid(row=1,column=0)
         self.profile_name_ENTRY.grid(row=1,column=1)
-        self.save_BUTTON.grid(row=2,column=0)
-        self.load_BUTTON.grid(row=2,column=1)
+        self.save_BUTTON.grid(row=2,column=1)
+        self.load_BUTTON.grid(row=2,column=2)
+        self.save_factory_BUTTON.grid(row=2,column=0)
         
         
         
     def save_button_press(self):
-        self.master.save_file()
+        self.master.save_fffs()
+    def save_factory_button_press(self):
+        self.master.save_factories()
     def load_button_press(self):
         self.master.load_new_file()        
     def get_profile_prefix(self=None):
         return self.profile_name_SV.get()
     def set_profile_prefix(self,value):
         self.base_profile_SV.set(value)
+
     
     
 class parameter_frame(tk.Frame):
@@ -131,11 +145,11 @@ class parameter_frame(tk.Frame):
         self.attribute_panels = []
         attributes  = XML_get_attributes(data)
         sub_nodes   = XML_get_data(data)
-        tag         = XML_get_tag(data)
-        name_LABEL  = tk.Label(self,text=tag,bg="pink")
+        self.tag         = XML_get_tag(data)
+        name_LABEL  = tk.Label(self,text=self.tag,bg="pink")
         name_LABEL.grid(row=0,sticky="ew")
         for item in attributes:
-            if tag =="profile" and item=="name":
+            if self.tag =="profile" and item=="name":
                 continue
             pan_data = [item,attributes[item]]
             cur_panel = value_frame(self)
@@ -162,7 +176,32 @@ class parameter_frame(tk.Frame):
         
         #TODO: Read in sub panels
         pass
-    
+    def enumerate_attributes(self):
+        out_list=[]
+        temp_list = []
+        for id,item in enumerate(self.attribute_panels):
+            temp_list.append(str("%s====%s"%(item.enumerate_tags(),item.enumerate_data()[0])))
+        out_list.append(temp_list)
+        
+        for id,item in enumerate(self.sub_panels):
+            if isinstance(item,parameter_frame):
+                out_list.append(item.enumerate_attributes())
+            else:
+                out_list.append([])
+        #out_list.append(temp_list0)
+        #out_list.append(temp_list)
+        return out_list
+    def enumerate_tags(self):
+        out_list = []
+        out_list.append(self.tag)
+        for id,item in enumerate(self.sub_panels):
+            out_list.append(item.enumerate_tags())
+        return out_list
+    def enumerate_data(self):
+        out_list = []
+        for id,item in enumerate(self.sub_panels):
+            out_list.append(item.enumerate_data())
+        return out_list
     def collapse_panel(self):
         pass
     def expand_panel(self):
@@ -187,6 +226,7 @@ class value_frame(tk.Frame):
         self.data_type = type(None)
         self.initialized= False
         self.widgets = []
+        self.tag = ""
         
         self.SV0 = tk.StringVar()
         self.SV1 = tk.StringVar()
@@ -201,16 +241,70 @@ class value_frame(tk.Frame):
         self.SV0.set("")
         self.SV1.set("")
         self.SV2.set("")
+        self.tag = ""
         
         
     def get_data(self):
         #TODO: get data in XML tree format
         pass
+    def enumerate_tags(self,junk=None):
+        return self.tag
+    def enumerate_attributes(self):
+        return []
+    def enumerate_data(self):
+        return_strings = []
+        if (self.data_type == type("") or self.data_type == type(None)):
+            return_strings.append(self.SV0.get())
+        elif (self.data_type == type(1) or self.data_type == type(1.2)):
+            is_float_0 = False
+            is_float_1 = False
+            is_float_2 = False
+            try:
+                val_0 = float(self.SV0.get())
+                is_float_0 = True
+            except:
+                pass
+            try:
+                val_1 = float(self.SV1.get())
+                is_float_1 = True
+            except:
+                pass
+            try:
+                val_2 = float(self.SV2.get())
+                is_float_2 = True
+            except:
+                pass
+            if self.SV0.get() == "":
+                print("WARNING: Unexpected empty entry box")
+            elif not is_float_0 and not self.SV0.get() == "":
+                print("WARNING: non-float entry box 0 %s %s"%(self.tag,self.SV0.get()))
+            if not is_float_1 and not self.SV1.get() == "":
+                print("WARNING: non-float entry box 1 %s %s"%(self.tag,self.SV1.get()))
+            if not is_float_2 and not self.SV1.get() == "":
+                print("WARNING: non-float entry box 2 %s %s"%(self.tag,self.SV2.get()))
+                
+            if is_float_0 and not is_float_1:
+                return_strings.append(self.SV0.get())
+            elif is_float_0 and is_float_1 and not is_float_2:
+                return_strings.append(self.SV0.get())
+                return_strings.append(self.SV1.get())
+            elif is_float_0 and is_float_1 and is_float_2:
+                val = val_0
+                int_type = type(1)
+                #This addition accounts for rounding errors
+                while val <= val_1+1e-10:
+                    if self.data_type == int_type:
+                        return_strings.append(str("%d"%val))
+                    else:
+                        return_strings.append(str("%.3f"%val))
+                    val += val_2
+        return return_strings
     def initialize_panel(self,data):
         if not isinstance(data,list):
             data = XML_get_leaf_data(data)
         new_str = str("%s=%s"%(data[0],data[1]))
         
+        self.tag = data[0]
         self.data_type = XML_data_type(data[1])
         if self.data_type == type(""):
             self.initialize_str_panel(data)
@@ -292,14 +386,14 @@ class main_app(ScrolledFrame):
             self.load_new_file(init_file)
             
         #FOR TESTING, AUTOMATICALLY LOAD A NEW FILE
-        self.load_new_file()
+        #self.load_new_file()
         
     def load_new_file(self=None):
         #TODO: open up a file dialog to select a file
         
         #FOR TESTING, AUTOMATICALLY LOAD THIS FILE
-        #file_name = tkFileDialog.askopenfilename(initialdir="./src")
-        file_name = "./src/Strawson's Ultimaker 2+ Settings.fff"
+        file_name = tkFileDialog.askopenfilename(initialdir="./src")
+        #file_name = "./src/Strawson's Ultimaker 2+ Settings.fff"
         
         
         print("Attempting to load %s"%(file_name))
@@ -321,16 +415,81 @@ class main_app(ScrolledFrame):
         self.data_frame.pack(side="bottom")
         #self.canv.pack()
         #print(self.canv.winfo_reqwidth(),self.canv.winfo_reqheight())
-    def save_file(self=None):
+    def save_fffs(self=None,save_files=True):
         print("Save file pressed")
-        #TODO: open up a file dialog to select a file name
-        #TODO: generate an XML tree from lower panels
-        #Save the resulting XML
-        pass
+        file_list = []
+        tags = self.data_frame.enumerate_tags()
+        attributes = self.data_frame.enumerate_attributes()
+        datas = self.data_frame.enumerate_data()
         
+        fff_name_prefix = self.header_frame.get_profile_prefix()
+        XML_data_list = build_XML(tags,attributes,datas,fff_name_prefix)
+        num_files = len(XML_data_list)
+        if save_files:
+            return_val = []
+
+
+
+            print("GONNA SAVE %d files"%(num_files))
+            # TODO: prommpt ok to save files and stuff
+            continue_with_save = tkMessageBox.askyesno("Confirm Configuration",
+                                          str("Save %d fff file?" % (num_files)))
+            if continue_with_save:
+                profile_prefix = self.header_frame.get_profile_prefix()
+                if profile_prefix == "":
+                    profile_prefix = askstring("Profile prefix", "Please provide a test name prefix")
+                    if profile_prefix == "":
+                        print("No valid profile prefix")
+                        return
+                new_dir = str("%s%s"%(FFF_DIR,profile_prefix))
+                if os.path.isdir(new_dir):
+                    shutil.rmtree(new_dir, ignore_errors=True)
+                os.mkdir(new_dir)
+                for i in range(num_files):
+                    file_name = str("%s/%s_%d.fff"%(new_dir,profile_prefix,i))
+                    print("SAVING TO %s"%(file_name))
+                    file = open(file_name,"w")
+                    file.write(XML_struct_to_str(XML_data_list[i]))
+                    file.close()
+                    return_val.append(file_name)
+        else:
+            return_val = XML_data_list
+        return return_val
+
+    def save_factories(self):
+        XML_list = self.save_fffs(save_files=False)
+        num_fffs = len(XML_list)
+        model = "" #TODO: Add check from header frame
+        #model = "D:/Files/school_BU/UCSDGradSchool/SE207/script_generator/src/models/40mmcube.stl"
+        if model == "":
+            model = tkFileDialog.askopenfilename(initialdir=MODEL_DIR, title="Select a model file", filetypes=[("stl files","*.stl")])
+        #model = "D:/Files/school_BU/UCSDGradSchool/SE207/script_generator/src/models/40mmcube.stl"
+        print(model)
+        if not os.path.isfile(model):
+            print("No valid model file selected")
+            return
+        num_factories = int(ceil(num_fffs / float(get_max_objects(XML_list[0],model))))
+
+        is_ok = tkMessageBox.askyesno("Confirm Configuration",str("Save %d fff files in %d factories?"%(num_fffs,num_factories)))
+        if not is_ok:
+            print("LEAVING save")
+            return
+
+
+        profile_prefix = self.header_frame.get_profile_prefix()
+        if profile_prefix == "":
+            profile_prefix = askstring("Profile prefix", "Please provide a test name prefix")
+            if profile_prefix == "":
+                print("No valid profile prefix")
+                return
+
+        generate_factories(XML_list,model,profile_prefix)
+        print("Finished Genereating factories")
+        pass
     def create_widgets(self):
         self.canv.load_new_file = self.load_new_file
-        self.canv.save_file = self.save_file
+        self.canv.save_fffs = self.save_fffs
+        self.canv.save_factories = self.save_factories
 
         self.header_frame = header_frame(self.canv)
         self.header_frame.pack(side="top",anchor="w")

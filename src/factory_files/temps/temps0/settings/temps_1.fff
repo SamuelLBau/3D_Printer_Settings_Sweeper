@@ -1,17 +1,16 @@
-<?xml version="1.0"?>
-<profile name="Strawson's Ultimaker 2+ Settings" version="2018-01-24 18:08:36" app="S3D-Software 4.0.0">
+<profile name="temps_1" version="2018-01-24 18:08:36" app="S3D-Software 4.0.0">
   <baseProfile>Ultimaker 2+</baseProfile>
   <printMaterial>PLA</printMaterial>
   <printQuality>honeycomb_fast</printQuality>
   <printExtruders></printExtruders>
   <extruder name="Primary Extruder">
     <toolheadNumber>0</toolheadNumber>
-    <temp name = "blah">
+    <temp name="blah">
       <what>555</what>
     </temp>
-    <diameter>0.4</diameter>
+    <diameter>0.450</diameter>
     <autoWidth>1</autoWidth>
-    <width>0.48</width>
+    <width>0.480</width>
     <extrusionMultiplier>1.02</extrusionMultiplier>
     <useRetract>1</useRetract>
     <retractionDistance>4</retractionDistance>

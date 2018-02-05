@@ -1,18 +1,17 @@
-<?xml version="1.0"?>
-<profile name="Strawson's Ultimaker 2+ Settings" version="2018-01-24 18:08:36" app="S3D-Software 4.0.0">
+<profile name="example_run2_4" version="['2018-01-24 18:08:36']" app="['S3D-Software 4.0.0']">
   <baseProfile>Ultimaker 2+</baseProfile>
   <printMaterial>PLA</printMaterial>
   <printQuality>honeycomb_fast</printQuality>
   <printExtruders></printExtruders>
-  <extruder name="Primary Extruder">
+  <extruder name="['Primary Extruder']">
     <toolheadNumber>0</toolheadNumber>
-    <temp name = "blah">
+    <temp name="['blah']">
       <what>555</what>
     </temp>
-    <diameter>0.4</diameter>
+    <diameter>0.450</diameter>
     <autoWidth>1</autoWidth>
-    <width>0.48</width>
-    <extrusionMultiplier>1.02</extrusionMultiplier>
+    <width>0.490</width>
+    <extrusionMultiplier>1.020</extrusionMultiplier>
     <useRetract>1</useRetract>
     <retractionDistance>4</retractionDistance>
     <extraRestartDistance>0</extraRestartDistance>
@@ -89,28 +88,28 @@
   <supportGridSpacing>4</supportGridSpacing>
   <maxOverhangAngle>45</maxOverhangAngle>
   <supportAngles>0</supportAngles>
-  <temperatureController name="Primary Extruder">
+  <temperatureController name="['Primary Extruder']">
     <temperatureNumber>0</temperatureNumber>
     <isHeatedBed>0</isHeatedBed>
     <relayBetweenLayers>0</relayBetweenLayers>
     <relayBetweenLoops>0</relayBetweenLoops>
     <stabilizeAtStartup>1</stabilizeAtStartup>
-    <setpoint layer="1" temperature="210"/>
+    <setpoint layer="['1']" temperature="['210']"/>
   </temperatureController>
-  <temperatureController name="Heated Build Platform">
+  <temperatureController name="['Heated Build Platform']">
     <temperatureNumber>1</temperatureNumber>
     <isHeatedBed>1</isHeatedBed>
     <relayBetweenLayers>0</relayBetweenLayers>
     <relayBetweenLoops>0</relayBetweenLoops>
     <stabilizeAtStartup>1</stabilizeAtStartup>
-    <setpoint layer="1" temperature="70"/>
+    <setpoint layer="['1']" temperature="['70']"/>
   </temperatureController>
   <fanSpeed>
-    <setpoint layer="1" speed="0"/>
-    <setpoint layer="2" speed="25"/>
-    <setpoint layer="3" speed="50"/>
-    <setpoint layer="4" speed="75"/>
-    <setpoint layer="5" speed="100"/>
+    <setpoint layer="['1']" speed="['0']"/>
+    <setpoint layer="['2']" speed="['25']"/>
+    <setpoint layer="['3']" speed="['50']"/>
+    <setpoint layer="['4']" speed="['75']"/>
+    <setpoint layer="['5']" speed="['100']"/>
   </fanSpeed>
   <blipFanToFullPower>1</blipFanToFullPower>
   <adjustSpeedForCooling>1</adjustSpeedForCooling>
@@ -204,15 +203,15 @@
   <singleExtrusionMaxPrintingWidthPercentage>200</singleExtrusionMaxPrintingWidthPercentage>
   <singleExtrusionEndpointExtension>0.2</singleExtrusionEndpointExtension>
   <horizontalSizeCompensation>0</horizontalSizeCompensation>
-  <autoConfigureMaterial name="PLA">
+  <autoConfigureMaterial name="['PLA']">
     <globalExtruderTemperature>210</globalExtruderTemperature>
     <globalBedTemperature>70</globalBedTemperature>
   </autoConfigureMaterial>
-  <autoConfigureMaterial name="PETG">
+  <autoConfigureMaterial name="['PETG']">
     <globalExtruderTemperature>250</globalExtruderTemperature>
     <globalBedTemperature>85</globalBedTemperature>
   </autoConfigureMaterial>
-  <autoConfigureQuality name="honeycomb_fast">
+  <autoConfigureQuality name="['honeycomb_fast']">
     <defaultSpeed>3000</defaultSpeed>
     <internalInfillPattern>Full Honeycomb</internalInfillPattern>
     <internalInfillAngles>0,120,-120</internalInfillAngles>
@@ -221,7 +220,7 @@
     <bottomSolidLayers>4</bottomSolidLayers>
     <infillPercentage>15</infillPercentage>
   </autoConfigureQuality>
-  <autoConfigureQuality name="honeycomb_slow">
+  <autoConfigureQuality name="['honeycomb_slow']">
     <defaultSpeed>2400</defaultSpeed>
     <internalInfillPattern>Full Honeycomb</internalInfillPattern>
     <internalInfillAngles>0,120,-120</internalInfillAngles>
@@ -230,7 +229,7 @@
     <bottomSolidLayers>6</bottomSolidLayers>
     <infillPercentage>15</infillPercentage>
   </autoConfigureQuality>
-  <autoConfigureQuality name="solid_fast">
+  <autoConfigureQuality name="['solid_fast']">
     <defaultSpeed>3000</defaultSpeed>
     <internalInfillPattern>Rectilinear</internalInfillPattern>
     <internalInfillAngles>45,-45</internalInfillAngles>
@@ -239,7 +238,7 @@
     <bottomSolidLayers>0</bottomSolidLayers>
     <infillPercentage>100</infillPercentage>
   </autoConfigureQuality>
-  <autoConfigureQuality name="solid_slow">
+  <autoConfigureQuality name="['solid_slow']">
     <defaultSpeed>2400</defaultSpeed>
     <internalInfillPattern>Rectilinear</internalInfillPattern>
     <internalInfillAngles>45,-45</internalInfillAngles>
