@@ -16,11 +16,13 @@ SRC_DIR = ABS_DIR + "/src/"
 SAMPLE_IMAGE_DIR = SRC_DIR + "Simplify_images/"
 FACTORY_DIR = SRC_DIR + "factory_files/"
 PRINT_BED_EDGE = 10
-PRINTER_HEAD_SIZE = [50,50] #[x,y]rectangle (max edge length)
+PRINT_MIN_DISTANCE = 5              #After object size and printer head accounted for, what minimum spacing between print head and other objects
+PRINTER_HEAD_SIZE = [25,25,25,25]   #[neg_x,pos_x,neg_y,pos_y] #Distance from printer nozzel to protruding ends of print head
 
 TYPE_DELAY = .01
 TAB_DELAY = .1
 WINDOW_DELAY = .2
+NUM_IMAGE_SEARCH_TRIES = 1
 
 BUTTON_LOCATIONS = {}
 
@@ -35,13 +37,24 @@ def close_Simplify3D():
 def add_model(model_file):
     pass
 
-def locate_button_center(file_name,bypass=True):
+def locate_button_center(file_name,bypass=True,max_num_tries=NUM_IMAGE_SEARCH_TRIES):
     global BUTTON_LOCATIONS
+    cur_tries = 0
     if (not file_name in BUTTON_LOCATIONS) or not bypass:
-        time.sleep(WINDOW_DELAY)
-        loc = pyautogui.locateOnScreen(SAMPLE_IMAGE_DIR + file_name)
-        center = [loc[0] + loc[2] / 2, loc[1] + loc[3] / 2]
-        BUTTON_LOCATIONS[file_name] = center
+        while cur_tries < max_num_tries:
+            try:
+                time.sleep(WINDOW_DELAY)
+                loc = pyautogui.locateOnScreen(SAMPLE_IMAGE_DIR + file_name)
+                center = [loc[0] + loc[2] / 2, loc[1] + loc[3] / 2]
+                BUTTON_LOCATIONS[file_name] = center
+                break
+            except:
+                print("COULD NOT FIND IMAGE, moving mouse and trying again in .5 seconds")
+                pyautogui.moveRel(100,100)
+                time.sleep(.5)
+            cur_tries += 1
+        else:
+            raise Exception("Failed to find image %s on screen, quitting now"%(file_name))
     return BUTTON_LOCATIONS[file_name]
 
 def repeat_press(button,iter,delay=TAB_DELAY):
@@ -95,7 +108,10 @@ def new_model(model_path,pos,model_name="temp"):
     pyautogui.hotkey('ctrl', 'i')
     type_path(model_path)
     pyautogui.typewrite(["enter"])
-    loc = locate_button_center("cur_model_color.png",bypass=False)
+    try:
+        loc = locate_button_center("cur_model_color.png",bypass=False)
+    except:
+        loc = locate_button_center("cur_model_color2.png", bypass=False)
     pyautogui.click(loc[0],loc[1],clicks=2)
     repeat_press("tab", 10,TAB_DELAY)
     pyautogui.typewrite(model_name)
@@ -195,44 +211,100 @@ def generate_factories(XML_data,model,prefix):
         time.sleep(2)
 
     close_Simplify3D()
-def arrange_models(XML_file,model_path):
+def arrange_models(XML_file,model_path,num_models=-1):
     floor_x_val = float(read_value(XML_file,"./strokeXoverride"))
     floor_x_center = floor_x_val/2.0
     floor_x_min = PRINT_BED_EDGE
     floor_x_max = floor_x_val - PRINT_BED_EDGE
+    floor_x_center = (floor_x_min + floor_x_max) / 2.0
 
     floor_y_val = float(read_value(XML_file,"./strokeYoverride"))
-    floor_y_center = floor_y_val/2.0
     floor_y_min = PRINT_BED_EDGE
     floor_y_max = floor_y_val - PRINT_BED_EDGE
+    floor_y_center = (floor_y_min + floor_y_max) / 2.0
     
     [x_min,x_max,y_min,y_max,z_min,z_max] = get_bounding_box(model_path)
     bbx = x_max - x_min
     bby = y_max - y_min
     bbz = z_max - z_min
 
-    obj_offx = (x_max + x_min) / 2.0
-    obj_offy = (y_max + y_min) / 2.0
-    obj_offz = (z_max + z_min) / 2.0
-
 
     half_bbx = bbx/2
     half_bby = bby/2
-    
-    num_x = np.floor((floor_x_max-floor_x_min)/(bbx + PRINTER_HEAD_SIZE[0]/2)).astype(np.int)
-    num_y = np.floor((floor_y_max-floor_y_min)/(bby + PRINTER_HEAD_SIZE[1]/2)).astype(np.int)
+
+    obj_off_x = (x_max + x_min) / 2.0
+    obj_off_y = (y_max + y_min) / 2.0
+
+
+
+
+    print("BBX BBY + %f %f"%(bbx,bby))
+    print(bbx + PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE)
+
+    # This centers items on plate
+    num_x = 0
+    num_y = 0
+    x_pos = floor_x_min
+    y_pos = floor_y_min
+    while x_pos + bbx <= floor_x_max:
+        num_x += 1
+        x_pos += bbx + PRINT_MIN_DISTANCE + PRINTER_HEAD_SIZE[0]
+    while y_pos + bby <= floor_y_max:
+        num_y += 1
+        y_pos += bby + PRINT_MIN_DISTANCE + PRINTER_HEAD_SIZE[2]
+
+    #If more models can fit than are being used
+    if num_models > 0 and num_models < num_x*num_y:
+        temp_x=0
+        temp_y=0
+        while True:
+            if temp_x + 1 <= num_x:
+                temp_x += 1
+                if temp_x * temp_y > num_models:
+                    break
+            if temp_y + 1 <= num_y:
+                temp_y += 1
+                if temp_x * temp_y >= num_models:
+                    break
+        num_x = temp_x
+        num_y = temp_y
+
+
+    # This centers items on plate
+    print_center_off = [0,0]
+    print_center_off[0] = (bbx * num_x + (PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE) * (num_x - 1)) / 2.0
+    print_center_off[1] = (bby * num_y + (PRINTER_HEAD_SIZE[2] + PRINT_MIN_DISTANCE) * (num_y - 1)) / 2.0
+
+
+    temp_x = (floor_x_val - ( PRINT_BED_EDGE*2 + bbx * num_x + (PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE) * (num_x - 1)))/2.0
+    temp_y = (floor_y_val - (PRINT_BED_EDGE*2 + bby * num_y + (PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE) * (
+    num_y - 1))) / 2.0
+
+
+    print("TEMP = %f,%f"%(temp_x,temp_y))
+    print("CENTER = %f,%f"%(floor_x_center ,floor_y_center ))
+    print("OBJ_OFFS = %f,%f"%(obj_off_x,obj_off_y))
+    print("OFFS = %f,%f"%(print_center_off[0],print_center_off[1]))
+
+    print_center_off[0] -= floor_x_center
+    print_center_off[1] -= floor_y_center
+
+    print("%f<->%f,%f<->%f"%(floor_x_min,floor_x_max,floor_y_min,floor_y_max))
     
     arranged_models = np.zeros([num_x*num_y,2])
-    x_off = floor_x_min + half_bbx
-    for i in range(num_x):
-        y_off = floor_y_min + half_bby
-        for j in range(num_y):
-            arranged_models[i*num_y+j,0] = x_off - obj_offx
-            arranged_models[i*num_y+j,1] = y_off - obj_offy
-            y_off += bby + PRINTER_HEAD_SIZE[1]/2
-        x_off += bbx + PRINTER_HEAD_SIZE[0]/2
+    y_off = floor_y_min + half_bbx
+    for i in range(num_y):
+        x_off = floor_x_min + half_bby
+        for j in range(num_x):
+            arranged_models[i*num_x+j,0] = x_off +temp_x#- print_center_off[0]
+            arranged_models[i*num_x+j,1] = y_off +temp_y#- print_center_off[1]
+            x_off += bbx + PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE
+        y_off += bby + PRINTER_HEAD_SIZE[2]  + PRINT_MIN_DISTANCE
 
+    print("ARRANGED MODELS")
     print(len(arranged_models))
+    print(arranged_models)
+
     return arranged_models
     
 def get_max_objects(XML_file,model_path):
