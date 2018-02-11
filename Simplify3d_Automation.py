@@ -8,6 +8,10 @@ import os
 import shutil
 import tkMessageBox
 
+#Used to copy model and generate XL file
+from shutil import copyfile
+import xlsxwriter
+
 from XML_handler import read_value,generate_XML_file
 
 ABS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -181,7 +185,6 @@ def generate_factories(XML_data,model,prefix):
     num_objects = len(XML_data)
     num_factories = int(ceil( float(num_objects) / float(len(pos_list))))
 
-    print(model)
 
     objects_written = 0
     base_folder = FACTORY_DIR+prefix
@@ -189,7 +192,26 @@ def generate_factories(XML_data,model,prefix):
         shutil.rmtree(base_folder, ignore_errors=True)
     os.mkdir(base_folder)
     base_folder = base_folder + "/"
-
+    
+    print(model)
+    #Place model in base folder
+    model_name = model.split("/")[-1]
+    model_path = base_folder + model_name
+    print(model_path)
+    copyfile(model,model_path.replace("\\","/"))
+    
+    #Place empty excel sheet in base folder
+    excel_path = base_folder + prefix + "_grading.xlsx"
+    #copyfile("./src/empty_excel.xlsx",excel_path.replace("\\","/"))
+    workbook = xlsxwriter.Workbook(excel_path)
+    worksheet = workbook.add_worksheet()
+    worksheet.write(0,0,model_name)
+    worksheet.write(1,0,"Settings file")
+    worksheet.write(1,1,"Grade")
+    for i in range(0,len(XML_data)):
+        setting_name_str = str("%s_%d.fff"%(prefix,i))
+        worksheet.write(i+2,0,setting_name_str)
+    workbook.close()
     open_Simplify3D()
     for fac_num in range(num_factories):
         cur_fac_dir = base_folder + str("%s%d"%(prefix,fac_num))
@@ -211,6 +233,10 @@ def generate_factories(XML_data,model,prefix):
         time.sleep(2)
 
     close_Simplify3D()
+    
+    
+    
+    
 def arrange_models(XML_file,model_path,num_models=-1):
     floor_x_val = float(read_value(XML_file,"./strokeXoverride"))
     floor_x_center = floor_x_val/2.0
