@@ -199,6 +199,7 @@ def generate_factories(XML_data,model,prefix):
     model_path = base_folder + model_name
     print(model_path)
     copyfile(model,model_path.replace("\\","/"))
+    model = model_path
     
     #Place empty excel sheet in base folder
     excel_path = base_folder + prefix + "_grading.xlsx"
@@ -207,14 +208,23 @@ def generate_factories(XML_data,model,prefix):
     worksheet = workbook.add_worksheet()
     worksheet.write(0,0,model_name)
     worksheet.write(1,0,"Settings file")
-    worksheet.write(1,1,"Grade")
+    worksheet.write(1,1,"Grades")
+    
+    offset_count = 1
     for i in range(0,len(XML_data)):
         setting_name_str = str("%s_%d.fff"%(prefix,i))
-        worksheet.write(i+2,0,setting_name_str)
+        if i%items_per_factory == 0:
+            worksheet.write(i+offset_count,0,str("Print job %d"%(int(i/items_per_factory))))
+            worksheet.write(i+offset_count,1,"Grades")
+            offset_count += 1
+        worksheet.write(i+offset_count,0,setting_name_str)
     workbook.close()
+    
+    
+    
     open_Simplify3D()
     for fac_num in range(num_factories):
-        cur_fac_dir = base_folder + str("%s%d"%(prefix,fac_num))
+        cur_fac_dir = base_folder + str("%s%d"%("Print_job_",fac_num))
         settings_dir = cur_fac_dir+"/settings"
         os.mkdir(cur_fac_dir)
         os.mkdir(settings_dir)
@@ -230,7 +240,7 @@ def generate_factories(XML_data,model,prefix):
 
         model_num_offset = fac_num*items_per_factory
         generate_factory(cur_settings,pos_list,model,factory_path,offset=model_num_offset)
-        time.sleep(2)
+        time.sleep(2)#Give program time to save
 
     close_Simplify3D()
     
