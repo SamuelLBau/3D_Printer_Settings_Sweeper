@@ -10,7 +10,7 @@ import shutil
 from XML_handler import XML_load_file,XML_get_attributes,XML_get_data, \
         XML_list_nodes,XML_is_leaf,XML_get_leaf_data,XML_get_tag,XML_data_type,\
         build_XML,generate_XML_file,XML_struct_to_str
-from Simplify3d_Automation import get_max_objects,generate_factories
+from Simplify3d_Automation import get_max_objects,generate_factories,get_default_distance_params,load_default_distance_params
         
 
 from XML_handler import etree_to_dict
@@ -97,6 +97,24 @@ class header_frame(tk.Frame):
         self.profile_name_LABEL = tk.Label(self,text="Profile name prefix: ")
         self.profile_name_SV    = tk.StringVar()
         self.profile_name_ENTRY = tk.Entry(self,textvariable=self.profile_name_SV)
+        
+        self.print_bed_edge_LABEL = tk.Label(self,text="Print Bed Edge / Object separation")
+        self.print_bed_edge_SV = tk.StringVar()
+        self.print_bed_edge_ENTRY = tk.Entry(self,textvariable=self.print_bed_edge_SV,width=5)
+        
+        self.print_separation_SV = tk.StringVar()
+        self.print_separation_ENTRY = tk.Entry(self,textvariable=self.print_separation_SV,width=5)
+        
+        self.print_head_info_LABEL = tk.Label(self,text="Print head (negx,posx,negy,posy)")
+        self.print_head_info_negx_SV = tk.StringVar()
+        self.print_head_info_negx_ENTRY = tk.Entry(self,textvariable=self.print_head_info_negx_SV,width=5)
+        self.print_head_info_posx_SV = tk.StringVar()
+        self.print_head_info_posx_ENTRY = tk.Entry(self,textvariable=self.print_head_info_posx_SV,width=5)
+        self.print_head_info_negy_SV = tk.StringVar()
+        self.print_head_info_negy_ENTRY = tk.Entry(self,textvariable=self.print_head_info_negy_SV,width=5)
+        self.print_head_info_posy_SV = tk.StringVar()
+        self.print_head_info_posy_ENTRY = tk.Entry(self,textvariable=self.print_head_info_posy_SV,width=5)
+        
         self.save_BUTTON        = tk.Button(self,text="Save .fff files",command=self.save_button_press)
         self.load_BUTTON        = tk.Button(self,text="Load .fff file",command=self.load_button_press)
         self.save_factory_BUTTON= tk.Button(self,text="Save .factory files",command=self.save_factory_button_press)
@@ -108,9 +126,21 @@ class header_frame(tk.Frame):
         self.base_profile2_LABEL.grid(row=0,column=1)
         self.profile_name_LABEL.grid(row=1,column=0)
         self.profile_name_ENTRY.grid(row=1,column=1)
-        self.save_BUTTON.grid(row=2,column=1)
-        self.load_BUTTON.grid(row=2,column=2)
-        self.save_factory_BUTTON.grid(row=2,column=0)
+        
+        self.print_bed_edge_LABEL.grid(row=2,column=0,columnspan=2)
+        self.print_bed_edge_ENTRY.grid(row=2,column=2)
+        self.print_separation_ENTRY.grid(row=2,column=3)
+        
+        self.print_head_info_LABEL.grid(row=3,column=0)
+        self.print_head_info_negx_ENTRY.grid(row=3,column=1)
+        self.print_head_info_posx_ENTRY.grid(row=3,column=2)
+        self.print_head_info_negy_ENTRY.grid(row=3,column=3)
+        self.print_head_info_posy_ENTRY.grid(row=3,column=4)
+        
+        
+        self.save_BUTTON.grid(row=4,column=1)
+        self.load_BUTTON.grid(row=4,column=2)
+        self.save_factory_BUTTON.grid(row=4,column=0)
         
         
         
@@ -124,9 +154,41 @@ class header_frame(tk.Frame):
         return self.profile_name_SV.get()
     def set_profile_prefix(self,value):
         self.base_profile_SV.set(value)
-
-    
-    
+    def isint(self,value):
+        try:
+            val = int(value)
+            return True
+        except:
+            return False
+    def set_printer_offsets(self,params):
+        min_dist = params["PRINT_MIN_DISTANCE"]
+        bed_edge = params["PRINT_BED_EDGE"]
+        head_size=params["PRINTER_HEAD_SIZE"]
+        
+        self.print_bed_edge_SV.set(str(bed_edge))
+        self.print_separation_SV.set(str(min_dist))
+        self.print_head_info_negx_SV.set(str(head_size[0]))
+        self.print_head_info_posx_SV.set(str(head_size[1]))
+        self.print_head_info_negy_SV.set(str(head_size[2]))
+        self.print_head_info_posy_SV.set(str(head_size[3]))
+    def get_printer_offsets(self):
+        res_dict = {}
+        if self.isint(self.print_bed_edge_SV.get()):
+            res_dict["PRINT_BED_EDGE"] = int(self.print_bed_edge_SV.get())
+        if self.isint(self.print_separation_SV.get()):    
+            res_dict["PRINT_MIN_DISTANCE"] = int(self.print_separation_SV.get())
+        if self.isint(self.print_head_info_negx_SV.get()) and \
+            self.isint(self.print_head_info_posx_SV.get()) and \
+            self.isint(self.print_head_info_negy_SV.get()) and \
+            self.isint(self.print_head_info_posy_SV.get()):
+            
+            negx = int(self.print_head_info_negx_SV.get())
+            posx = int(self.print_head_info_posx_SV.get())
+            negy = int(self.print_head_info_negy_SV.get())
+            posy = int(self.print_head_info_posy_SV.get())
+            
+            res_dict["PRINTER_HEAD_SIZE"] = [negx,posx,negy,posy]
+        return res_dict
 class parameter_frame(tk.Frame):
     #This assumes that incoming data (from initialize panel) is not a tree leaf
     DEFAULT_TAB_OFFSET = 5
@@ -384,7 +446,8 @@ class main_app(ScrolledFrame):
         
         if not init_file == "":
             self.load_new_file(init_file)
-            
+        load_default_distance_params()
+        self.header_frame.set_printer_offsets(get_default_distance_params())    
         #FOR TESTING, AUTOMATICALLY LOAD A NEW FILE
         #self.load_new_file()
         
@@ -468,7 +531,8 @@ class main_app(ScrolledFrame):
         if not os.path.isfile(model):
             print("No valid model file selected")
             return
-        num_factories = int(ceil(num_fffs / float(get_max_objects(XML_list[0],model))))
+        printer_info = self.header_frame.get_printer_offsets()
+        num_factories = int(ceil(num_fffs / float(get_max_objects(XML_list[0],model,printer_info))))
 
         is_ok = tkMessageBox.askyesno("Confirm Configuration",str("Save %d fff files in %d factories?"%(num_fffs,num_factories)))
         if not is_ok:
@@ -483,7 +547,7 @@ class main_app(ScrolledFrame):
                 print("No valid profile prefix")
                 return
 
-        generate_factories(XML_list,model,profile_prefix)
+        generate_factories(XML_list,model,profile_prefix,printer_info)
         print("Finished Genereating factories")
         pass
     def create_widgets(self):
@@ -496,6 +560,7 @@ class main_app(ScrolledFrame):
         
         self.data_frame = parameter_frame(self.canv)
         self.data_frame.pack(side="bottom",fill="x",expand=1)
+        
 
     def canv_configure(self,event):
         pass

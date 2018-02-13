@@ -179,8 +179,8 @@ def generate_factory(settings,pos_list,model,factory_path,offset=0):
     print("SAVING FACTORY")
     save_factory(factory_path)
 
-def generate_factories(XML_data,model,prefix):
-    pos_list = arrange_models(XML_data[0], model)
+def generate_factories(XML_data,model,prefix,distance_params={}):
+    pos_list = arrange_models(XML_data[0], model,distance_params=distance_params)
     items_per_factory = pos_list.shape[0]
     num_objects = len(XML_data)
     num_factories = int(ceil( float(num_objects) / float(len(pos_list))))
@@ -245,18 +245,55 @@ def generate_factories(XML_data,model,prefix):
     close_Simplify3D()
     
     
+def load_default_distance_params():
+    global PRINTER_HEAD_SIZE
+    global PRINT_BED_EDGE
+    global PRINT_MIN_DISTANCE
+
+    file = open("./src/printer_information.txt")
+    for line in file:
+        line_split = line.split(",")
+        if line_split[0] == "PRINTER_HEAD_SIZE":
+            PRINTER_HEAD_SIZE = line_split[1:]
+            for i in range(len(PRINTER_HEAD_SIZE)):
+                PRINTER_HEAD_SIZE[i] = int(PRINTER_HEAD_SIZE[i])
+        if line_split[0] == "PRINT_BED_EDGE":
+            PRINT_BED_EDGE = int(line_split[1])
+        if line_split[0] == "PRINT_MIN_DISTANCE":
+            PRINT_MIN_DISTANCE = int(line_split[1])
+    print(PRINTER_HEAD_SIZE)
+    print(PRINT_BED_EDGE)
+    print(PRINT_MIN_DISTANCE)
+def get_default_distance_params():
+    res_dict = {}
+    res_dict["PRINTER_HEAD_SIZE"] = PRINTER_HEAD_SIZE
+    res_dict["PRINT_BED_EDGE"] = PRINT_BED_EDGE
+    res_dict["PRINT_MIN_DISTANCE"] = PRINT_MIN_DISTANCE
+    return res_dict
+def arrange_models(XML_file,model_path,num_models=-1,distance_params={}):
     
+    if "PRINTER_HEAD_SIZE" in distance_params:
+        printer_head_size = distance_params["PRINTER_HEAD_SIZE"]
+    else:
+        printer_head_size = PRINTER_HEAD_SIZE
+    if "PRINT_MIN_DISTANCE" in distance_params:
+        print_min_distance = distance_params["PRINT_MIN_DISTANCE"]
+    else:
+        print_min_distance = PRINT_MIN_DISTANCE
+    if "PRINT_BED_EDGE" in distance_params:
+        print_bed_edge = distance_params["PRINT_BED_EDGE"]
+    else:
+        print_bed_edge = PRINT_BED_EDGE
     
-def arrange_models(XML_file,model_path,num_models=-1):
     floor_x_val = float(read_value(XML_file,"./strokeXoverride"))
-    floor_x_center = floor_x_val/2.0
-    floor_x_min = PRINT_BED_EDGE
-    floor_x_max = floor_x_val - PRINT_BED_EDGE
+    floor_y_val = float(read_value(XML_file,"./strokeYoverride"))
+    
+    floor_x_min = print_bed_edge
+    floor_x_max = floor_x_val - print_bed_edge
     floor_x_center = (floor_x_min + floor_x_max) / 2.0
 
-    floor_y_val = float(read_value(XML_file,"./strokeYoverride"))
-    floor_y_min = PRINT_BED_EDGE
-    floor_y_max = floor_y_val - PRINT_BED_EDGE
+    floor_y_min = print_bed_edge
+    floor_y_max = floor_y_val - print_bed_edge
     floor_y_center = (floor_y_min + floor_y_max) / 2.0
     
     [x_min,x_max,y_min,y_max,z_min,z_max] = get_bounding_box(model_path)
@@ -271,11 +308,8 @@ def arrange_models(XML_file,model_path,num_models=-1):
     obj_off_x = (x_max + x_min) / 2.0
     obj_off_y = (y_max + y_min) / 2.0
 
-
-
-
     print("BBX BBY + %f %f"%(bbx,bby))
-    print(bbx + PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE)
+    print(bbx + printer_head_size[0] + print_min_distance)
 
     # This centers items on plate
     num_x = 0
@@ -284,10 +318,10 @@ def arrange_models(XML_file,model_path,num_models=-1):
     y_pos = floor_y_min
     while x_pos + bbx <= floor_x_max:
         num_x += 1
-        x_pos += bbx + PRINT_MIN_DISTANCE + PRINTER_HEAD_SIZE[0]
+        x_pos += bbx + print_min_distance + printer_head_size[0]
     while y_pos + bby <= floor_y_max:
         num_y += 1
-        y_pos += bby + PRINT_MIN_DISTANCE + PRINTER_HEAD_SIZE[2]
+        y_pos += bby + print_min_distance + printer_head_size[2]
 
     #If more models can fit than are being used
     if num_models > 0 and num_models < num_x*num_y:
@@ -308,12 +342,12 @@ def arrange_models(XML_file,model_path,num_models=-1):
 
     # This centers items on plate
     print_center_off = [0,0]
-    print_center_off[0] = (bbx * num_x + (PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE) * (num_x - 1)) / 2.0
-    print_center_off[1] = (bby * num_y + (PRINTER_HEAD_SIZE[2] + PRINT_MIN_DISTANCE) * (num_y - 1)) / 2.0
+    print_center_off[0] = (bbx * num_x + (printer_head_size[0] + print_min_distance) * (num_x - 1)) / 2.0
+    print_center_off[1] = (bby * num_y + (printer_head_size[2] + print_min_distance) * (num_y - 1)) / 2.0
 
 
-    temp_x = (floor_x_val - ( PRINT_BED_EDGE*2 + bbx * num_x + (PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE) * (num_x - 1)))/2.0
-    temp_y = (floor_y_val - (PRINT_BED_EDGE*2 + bby * num_y + (PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE) * (
+    temp_x = (floor_x_val - ( print_bed_edge*2 + bbx * num_x + (printer_head_size[0] + print_min_distance) * (num_x - 1)))/2.0
+    temp_y = (floor_y_val - (print_bed_edge*2 + bby * num_y + (printer_head_size[0] + print_min_distance) * (
     num_y - 1))) / 2.0
 
 
@@ -334,8 +368,8 @@ def arrange_models(XML_file,model_path,num_models=-1):
         for j in range(num_x):
             arranged_models[i*num_x+j,0] = x_off +temp_x#- print_center_off[0]
             arranged_models[i*num_x+j,1] = y_off +temp_y#- print_center_off[1]
-            x_off += bbx + PRINTER_HEAD_SIZE[0] + PRINT_MIN_DISTANCE
-        y_off += bby + PRINTER_HEAD_SIZE[2]  + PRINT_MIN_DISTANCE
+            x_off += bbx + printer_head_size[0] + print_min_distance
+        y_off += bby + printer_head_size[2]  + print_min_distance
 
     print("ARRANGED MODELS")
     print(len(arranged_models))
@@ -343,8 +377,8 @@ def arrange_models(XML_file,model_path,num_models=-1):
 
     return arranged_models
     
-def get_max_objects(XML_file,model_path):
-    arranged_models = arrange_models(XML_file,model_path)
+def get_max_objects(XML_file,model_path,distance_params={}):
+    arranged_models = arrange_models(XML_file,model_path,distance_params)
     arr_size = arranged_models.shape
     return arr_size[0]
 
